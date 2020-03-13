@@ -1,72 +1,134 @@
 require("babel-register")
 const express = require("express")
-const config = require('./config')
-const {success,error} = require("functions")
+const config = require('./assert/config/config')
+const {success,error} = require("./assert/config/functions")
+const mysql = require("promise-mysql")
 const morgan = require("morgan")
 const bodyParser = require("body-parser")
 const app = express()
 app.use(morgan("dev"))
 app.use(express.json()) // for parsing application/json
 app.use(express.urlencoded({ extended: true })) // for parsing application/x-www-form-urlencoded
+ mysql.createConnection({
+    host     : config.connection.localhost,
+    user     : config.connection.user,
+    password : "",
+    database : config.connection.database
+  }).then((connection)=>
+  {
+    let Members  =  require("./assert/config/member-class")(connection,config)
 
-members = [{id:1,name:"daouda"},{id:2,name:"abou"},{id:3,name:"mamy"}]
+
+    console.log("connecte")
+
+
 
 let MemberRouter = express.Router()
-MemberRouter.route(":/id")
-.get((req,res)=>
-{ var index = getIndex(req.params.id)
-    if(typeof(index) == 'string')
-    {
-        res.json(error(index))
-    }
-
-    else res.json(success(members[(index)-1]))
-
+MemberRouter.route("/:id")
+.get(async(req,res)=>
+{ 
+    let member = await(Members.getid(re.params.id))
+    if(member instanceof Error)
+        res.json(error(err.message))
+    else
+        res.json(success(member))
+  
 })
 
 .put((req,res)=>
-{ let  index = getIndex(req.params.id)
-    if(typeof(index) == 'string')
+{ 
+    if(req.body.name)
     {
-        res.json(error(index))
+        connexion.query("SELECT * FROM members where id = ? ", [req.params.id] , (err,result) =>
+        {
+            if(err)
+            {
+                res.json(error(err.message))
+    
+            }else{
+                if(result[0] =! undefined)
+                {
+                connection.query("SELECT  * FROM members where name = ? ans id != ?", [req.body.name, req.params.id], (err,result) =>
+                {
+                    if(err)
+                    {
+                        res.json(error("same name"))
+                    }
+                    else
+                    {
+                        if(result[0] =! undefined)
+                        {
+                            connection.query("UPDATE * FROM members SET name =? WHERE id =? ", [req.body.name,req.params.id],(err,result) =>
+                            {if(err)
+                                {
+                                    res.json(error(err.message))
+                                }
+                                else
+                                {
+                                    res.json(success(true))
+                                }
+
+                    
+                            })            
+                        }
+                        else
+                        {
+                            res.json(error(err.message))
+                        }
+
+
+
+                    }
+
+                })
+
+                }else
+                {
+                    res.json(error("wrong id"))
+                }
+    
+            }})
     }
     else
     {
-
-  let same = false
-    for (let i=0;i<members.length;i++)
-    {
-        if(req.body.name == members[i].name && req.params.id != members[i].id)
-         {
-        same = true
-         break
-         }
+        res.json(error("wrong id"))
     }
-    if(same)
-    {
-        res.json(error("same name"))
-    }else
-    {
-        members[index].name = req.body.name
-        res.json(success("true"))
-    }
-}
+    
    
 })
 
 .delete((req,res)=>
-{ var index = getIndex(req.params.id)
-    if(typeof(index) == 'string')
+{ 
+    connection.query("SELECT * FROM members where  id = ? " , [req.params.id], (err,result)=>
     {
-        res.json(error(index))
-    }
+        if(err)
+        {
+            res.json(error(err.message))
+            
+        }
+        else
+        {
+            if( result[0] != undefined)
+            {
+                connection.query("DELETE * FROM members whee id= ?" , [req.params.id], (err, result)=>
+            {
+                
+                if(err)
+                {res.json(error(err.message))}
+                else{
+                    res.json(success(true))
+                }
 
-    else 
-    {
-        members.splice(index,1)
-        res.json(success(members))
-        
-    }
+            }
+            )
+
+            }
+            else { res.json(error("wrong id"))}
+
+            
+
+        }
+    })
 
 })
 
@@ -77,53 +139,89 @@ MemberRouter.route("/")
 {
     if(req.query.max != undefined && req.query.max>0)
     {
-        res.json(success(members.splice(0,req.query.max)))
+        connection.query('SELECT * FROM members  LIMIT 0,? ', [req.query.max ], (err,result)=>
+        {
+            if(err)
+               {res.json(error(err.message))}
+            else {res.json(success(result))}
+            
+           
+        }
+
+        )
 
     }
     else if(req.query.max != undefined )
     {
-        res.json(error("error de la") )
+        res.json(error("error de la requet") )
 
     }
     else
-    {res.json(success(members))   }
+    {
+        connection.query('SELECT * FROM members' , (err,result)=>
+        {
+            if(err)
+               {res.json(error(err.message))}
+            else {res.json(success(result))}
+            
+           
+        }
+
+        )}
 })
 
 .post((req,res) =>
 {
-    let samename = false;
-
-    for (let i=1 ;i<members.length;i++)
-        {
-            if (req.body.name == members[i].name)
+    if(req.body.name)
+    {
+        connection.query("SELECT * FROM members where  name= ?",[req.body.name],(err,result) =>
+        {if(err)
             {
-                
-                samename = true
-                break
+                res.json(error("wrong id"))
             }
-        }
-    if(samename)
-    {
-        res.json(error(" name already create")) 
-    }
-    else 
-    {
-        if(req.body.name)
-        {
-            
-            let member = { id:createId(), name:req.body.name}
-            members.push(member)
-            res.json(success(member))
-    
-        }
-        else
-        {
-            res.json(error("not create name"))
-        }
-    }
+            else{
+                if (result[0] != undefined)
+                {
+                res.json(error("name is already take"))
+                }
+                else{
+                    connection.query("INSERT INTO members(name) VALUES(?) " , [req.body.name], (err,result) =>
+                    {
+                        if(err)
+                          {
+                              res.json(error(err.message))
+                          }
+                          else
+                          {
+                              
+                            connection.query("SELECT * FROM members where name =? ",[req.body.name], (err,result)=>
+                              {
+                                  if(err)
+                                  { res.json(error(err.message))}
+                                  else{
+                                      res.json(success({
+                                          id: result[0].id,
+                                          name: result[0].name
+                                      }))
+                                  }
 
-}
-)
+                              })
+                          }
+
+                    })
+                }
+            }
+
+        })
+
+    }
+    else
+    {
+    
+        res.json(error("no name in the request"))
+
+    }
+})
 
 app.use(config.rootAPI+"members", MemberRouter)
 
@@ -133,19 +231,12 @@ app.listen(config.port,()=>
 }
 )
 
-
-function getIndex(id)
-{
-    for(let i=0;i<members.length;i++)
-    {
-        if(members[i].id == id)
-        return i
-    }
-    return "wrong id"
-}
    
 
-function createId()
-{
-   return lastmember = members[members.length-1].id +1
-}
+  }).catch((err)=>{
+      console.log("Problem de connexion database")
+      console.log(err.message)
+
+  })
+
+
